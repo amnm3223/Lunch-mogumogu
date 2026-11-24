@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>給食もぐもぐランキング</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Zen Maru Gothic for a friendly, kid-friendly look -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
+    <!-- Tone.js for fun sound effects -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <!-- Canvas Confetti for celebration -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Zen Maru Gothic', sans-serif;
+            background-color: #FFFBEB; /* Warm cream background */
+            background-image: radial-gradient(#FDE68A 2px, transparent 2px);
+            background-size: 32px 32px;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Custom animations */
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.12); }
+            100% { transform: scale(1); }
+        }
+        .animate-pop {
+            animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-6px); }
+        }
+        .animate-float {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #FEF3C7;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #F59E0B;
+            border-radius: 10px;
+        }
+
+        /* Button 3D press effect */
+        .btn-3d {
+            transition: all 0.1s ease;
+            box-shadow: 0 6px 0 #D97706;
+        }
+        .btn-3d:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #D97706;
+        }
+        .btn-3d-done {
+            background-color: #10B981 !important;
+            border-color: #059669 !important;
+            color: white !important;
+            box-shadow: 0 4px 0 #047857 !important;
+        }
+        .btn-3d-done:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #047857 !important;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-amber-950 flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400 text-white shadow-lg rounded-b-3xl sticky top-0 z-30 border-b-4 border-orange-500">
+        <div class="max-w-7xl mx-auto px-4 py-3 sm:py-4 flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-3">
+                <span class="text-3xl sm:text-4xl animate-float">🍱</span>
+                <div>
+                    <h1 class="text-2xl sm:text-3xl font-black tracking-wider drop-shadow-md">給食もぐもぐランキング</h1>
+                    <p class="text-xs sm:text-sm font-bold text-amber-900 bg-white/80 px-2.5 py-0.5 rounded-full inline-block mt-0.5" id="current-date-display">
+                        📅 読み込み中...
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 sm:gap-3">
+                <!-- Today's Total Counter -->
+                <div class="bg-white/95 text-amber-900 px-3 sm:px-4 py-1.5 sm:py-2 rounded-2xl shadow-inner border-2 border-amber-300 flex items-center gap-2">
+                    <span class="text-xl sm:text-2xl">😋</span>
+                    <div>
+                        <div class="text-[10px] sm:text-xs font-bold text-amber-600 leading-none">きょうの完食</div>
+                        <div class="text-lg sm:text-xl font-black leading-tight">
+                            <span id="today-count" class="text-orange-600">0</span><span class="text-sm"> / <span id="total-students-display">30</span>人</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Teacher Settings Button -->
+                <button onclick="openSettingsModal()" class="bg-amber-800/20 hover:bg-amber-800/30 text-white p-2.5 sm:p-3 rounded-2xl transition flex items-center gap-1 font-bold text-sm" title="せんせい用設定">
+                    <span class="text-xl">⚙️</span>
+                    <span class="hidden md:inline">せってい</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- Left Column: Student Number Grid (7 cols on lg) -->
+        <section class="lg:col-span-7 bg-white/90 backdrop-blur-sm rounded-3xl p-5 sm:p-6 shadow-xl border-4 border-amber-200">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5 pb-3 border-b-2 border-dashed border-amber-200">
+                <div>
+                    <h2 class="text-xl sm:text-2xl font-black text-orange-600 flex items-center gap-2">
+                        <span>👆</span> じぶんの番号をおしてね！
+                    </h2>
+                    <p class="text-xs sm:text-sm font-bold text-amber-700 mt-1">
+                        きょうの給食を完食できたらタップ！もう一回おすと取り消せるよ。
+                    </p>
+                </div>
+                <button onclick="startNextDay()" class="self-start sm:self-auto bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs sm:text-sm px-4 py-2.5 rounded-2xl shadow-md transition flex items-center gap-1.5 border-b-4 border-sky-700 active:translate-y-0.5">
+                    <span>🌅</span> つぎの日の給食へ
+                </button>
+            </div>
+
+            <!-- Number Buttons Container -->
+            <div id="student-grid" class="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3 sm:gap-4">
+                <!-- Buttons will be generated by JS -->
+            </div>
+        </section>
+
+        <!-- Right Column: Total Meals Board (5 cols on lg) -->
+        <section class="lg:col-span-5 bg-gradient-to-b from-amber-100 to-orange-50 rounded-3xl p-5 sm:p-6 shadow-xl border-4 border-orange-300 sticky top-24">
+            <div class="flex items-center justify-between mb-4 pb-3 border-b-2 border-orange-200">
+                <h2 class="text-xl sm:text-2xl font-black text-amber-900 flex items-center gap-2">
+                    <span class="text-2xl sm:text-3xl">📊</span> もぐもぐきろく
+                </h2>
+                <span class="bg-orange-500 text-white text-xs font-black px-3 py-1 rounded-full shadow-sm">
+                    累計回数
+                </span>
+            </div>
+
+            <!-- Class Total Summary Box -->
+            <div class="bg-white/90 rounded-2xl p-3.5 mb-4 border-2 border-amber-200 flex items-center justify-between shadow-sm">
+                <div class="flex items-center gap-2.5">
+                    <span class="text-2xl">🍱</span>
+                    <span class="font-bold text-sm sm:text-base text-amber-900">クラスみんなで食べた合計</span>
+                </div>
+                <div class="text-xl sm:text-2xl font-black text-orange-600">
+                    <span id="class-total-meals">0</span> <span class="text-xs sm:text-sm text-amber-800">回</span>
+                </div>
+            </div>
+
+            <!-- Top 3 Meal Counts List (Only Counts, No Student Numbers) -->
+            <div class="bg-white/80 rounded-2xl p-4 border-2 border-orange-200 space-y-3" id="ranking-list">
+                <!-- Top 3 count cards will be generated by JS -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Celebration Toast Banner -->
+    <div id="toast-banner" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-all duration-300 opacity-0 translate-y-10">
+        <div class="bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-6 py-3.5 rounded-full shadow-2xl border-4 border-white flex items-center gap-3">
+            <span class="text-3xl" id="toast-emoji">🎉</span>
+            <div>
+                <div class="font-black text-lg sm:text-xl tracking-wide" id="toast-title">1番さん ごちそうさま！</div>
+                <div class="text-xs sm:text-sm font-bold text-emerald-100" id="toast-subtitle">これで 5回目 の完食だよ！</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings / Teacher Modal -->
+    <div id="settings-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border-4 border-amber-400 animate-pop">
+            <div class="flex items-center justify-between mb-4 pb-2 border-b-2 border-amber-100">
+                <h3 class="text-xl font-black text-amber-900 flex items-center gap-2">
+                    <span>⚙️</span> せんせい用せってい
+                </h3>
+                <button onclick="closeSettingsModal()" class="text-amber-500 hover:text-amber-800 text-2xl font-black w-8 h-8 flex items-center justify-center rounded-full hover:bg-amber-100">
+                    ✕
+                </button>
+            </div>
+
+            <div class="space-y-5">
+                <!-- Class Size Setting -->
+                <div>
+                    <label class="block text-sm font-bold text-amber-800 mb-1.5">クラスの人数（1〜45人）</label>
+                    <div class="flex gap-2">
+                        <input type="number" id="input-student-count" min="1" max="45" value="30" class="w-full px-4 py-2.5 rounded-xl border-2 border-amber-300 font-black text-lg text-amber-900 focus:outline-none focus:border-orange-500">
+                        <button onclick="updateStudentCount()" class="bg-orange-500 hover:bg-orange-600 text-white font-bold px-5 py-2.5 rounded-xl shadow transition whitespace-nowrap">
+                            へんこう
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Sound Toggle -->
+                <div class="flex items-center justify-between bg-amber-50 p-3.5 rounded-2xl border border-amber-200">
+                    <div>
+                        <div class="font-bold text-amber-900">効果音（ファンファーレ）</div>
+                        <div class="text-xs text-amber-700">ボタンを押したときに音を鳴らします</div>
+                    </div>
+                    <button id="sound-toggle-btn" onclick="toggleSound()" class="bg-emerald-500 text-white font-black px-4 py-2 rounded-xl text-sm shadow">
+                        ON 🔊
+                    </button>
+                </div>
+
+                <!-- Past Paper Records Input Button -->
+                <div class="bg-sky-50 p-3.5 rounded-2xl border border-sky-200">
+                    <div class="font-bold text-sky-900 mb-1">📝 これまでの紙の記録を入力</div>
+                    <div class="text-xs text-sky-700 mb-2.5">紙で集計していたこれまでの完食回数を番号ごとに入力できます。</div>
+                    <button onclick="openBulkEditModal()" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-black py-2.5 px-4 rounded-xl text-sm shadow transition flex items-center justify-center gap-1.5">
+                        <span>✏️</span> これまでの回数を入力する
+                    </button>
+                </div>
+
+                <!-- Demo Data Button -->
+                <div class="pt-2 border-t border-amber-100">
+                    <div class="text-xs font-bold text-amber-700 mb-2">データ操作</div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="loadDemoData()" class="bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold py-2.5 px-3 rounded-xl text-xs transition border border-amber-300">
+                            🎲 おためしデータを入れる
+                        </button>
+                        <button onclick="confirmResetAll()" class="bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold py-2.5 px-3 rounded-xl text-xs transition border border-rose-300">
+                            🗑️ すべての記録をリセット
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 text-right">
+                <button onclick="closeSettingsModal()" class="bg-amber-500 hover:bg-amber-600 text-white font-black px-6 py-2.5 rounded-2xl shadow-md w-full">
+                    とじる
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Edit Past Records Modal -->
+    <div id="bulk-edit-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border-4 border-sky-400 animate-pop flex flex-col max-h-[90vh]">
+            <div class="flex items-center justify-between mb-3 pb-2 border-b-2 border-sky-100">
+                <h3 class="text-xl font-black text-sky-950 flex items-center gap-2">
+                    <span>📝</span> これまでの回数を入力
+                </h3>
+                <button onclick="closeBulkEditModal()" class="text-sky-500 hover:text-sky-800 text-2xl font-black w-8 h-8 flex items-center justify-center rounded-full hover:bg-sky-100">
+                    ✕
+                </button>
+            </div>
+
+            <p class="text-xs sm:text-sm font-bold text-sky-800 mb-3">
+                紙で集計していた「これまでの完食回数」をそれぞれの番号に入力して、「ほぞんする」をおしてください。
+            </p>
+
+            <!-- Scrollable Input Grid -->
+            <div id="bulk-edit-list" class="overflow-y-auto flex-grow pr-1 grid grid-cols-2 sm:grid-cols-3 gap-2.5 py-2">
+                <!-- Inputs will be generated by JS -->
+            </div>
+
+            <div class="mt-4 pt-3 border-t border-sky-100 flex gap-3">
+                <button onclick="closeBulkEditModal()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 rounded-2xl transition">
+                    キャンセル
+                </button>
+                <button onclick="saveBulkEdit()" class="flex-1 bg-sky-500 hover:bg-sky-600 text-white font-black py-3 rounded-2xl shadow-md transition">
+                    ほぞんする
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Confirmation Modal (Replaces window.confirm) -->
+    <div id="confirm-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border-4 border-rose-400 text-center">
+            <div class="text-4xl mb-2" id="confirm-icon">⚠️</div>
+            <h3 class="text-lg font-black text-gray-900 mb-2" id="confirm-title">かくにん</h3>
+            <p class="text-sm font-bold text-gray-600 mb-6" id="confirm-message">本当に実行しますか？</p>
+            <div class="flex gap-3">
+                <button onclick="closeConfirmModal()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 rounded-2xl transition">
+                    やめる
+                </button>
+                <button id="confirm-ok-btn" class="flex-1 bg-rose-500 hover:bg-rose-600 text-white font-black py-3 rounded-2xl shadow-md transition">
+                    OK
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Application State & Auto-Save ---
+        let state = {
+            studentCount: 30,
+            dayNumber: 1,
+            soundEnabled: true,
+            // Array of student objects: { id: 1, totalMeals: 0, eatenToday: false }
+            students: []
+        };
+
+        // Save current state to browser storage
+        function saveState() {
+            try {
+                window.localStorage.setItem('kyushoku_mogumogu_data_v1', JSON.stringify(state));
+            } catch (e) {
+                console.warn("データの保存に失敗しました:", e);
+            }
+        }
+
+        // Load saved state from browser storage
+        function loadState() {
+            try {
+                const saved = window.localStorage.getItem('kyushoku_mogumogu_data_v1');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (parsed && Array.isArray(parsed.students)) {
+                        state.studentCount = parsed.studentCount || 30;
+                        state.dayNumber = parsed.dayNumber || 1;
+                        state.soundEnabled = parsed.soundEnabled !== undefined ? parsed.soundEnabled : true;
+                        state.students = parsed.students;
+                        return true;
+                    }
+                }
+            } catch (e) {
+                console.warn("データの読み込みに失敗しました:", e);
+            }
+            return false;
+        }
+
+        // Initialize students array
+        function initStudents(count) {
+            const newStudents = [];
+            for (let i = 1; i <= count; i++) {
+                const existing = state.students.find(s => s.id === i);
+                if (existing) {
+                    newStudents.push(existing);
+                } else {
+                    newStudents.push({ id: i, totalMeals: 0, eatenToday: false });
+                }
+            }
+            state.students = newStudents;
+        }
+
+        // --- Sound Effects using Tone.js ---
+        let synth = null;
+        function playSuccessSound() {
+            if (!state.soundEnabled) return;
+            try {
+                if (Tone.context.state !== 'running') {
+                    Tone.start();
+                }
+                if (!synth) {
+                    synth = new Tone.PolySynth(Tone.Synth, {
+                        oscillator: { type: "triangle" },
+                        envelope: { attack: 0.02, decay: 0.1, sustain: 0.1, release: 0.4 }
+                    }).toDestination();
+                }
+                const now = Tone.now();
+                synth.triggerAttackRelease("C5", "16n", now);
+                synth.triggerAttackRelease("E5", "16n", now + 0.08);
+                synth.triggerAttackRelease("G5", "16n", now + 0.16);
+                synth.triggerAttackRelease("C6", "8n", now + 0.24);
+            } catch (e) {
+                console.warn("Audio playback failed:", e);
+            }
+        }
+
+        function playUndoSound() {
+            if (!state.soundEnabled) return;
+            try {
+                if (Tone.context.state !== 'running') {
+                    Tone.start();
+                }
+                if (!synth) {
+                    synth = new Tone.PolySynth(Tone.Synth).toDestination();
+                }
+                const now = Tone.now();
+                synth.triggerAttackRelease("E4", "16n", now);
+                synth.triggerAttackRelease("C4", "8n", now + 0.08);
+            } catch (e) {
+                console.warn("Audio playback failed:", e);
+            }
+        }
+
+        // --- Core Interactions ---
+        function toggleStudentMeal(id) {
+            const student = state.students.find(s => s.id === id);
+            if (!student) return;
+
+            if (!student.eatenToday) {
+                // Mark as eaten today
+                student.eatenToday = true;
+                student.totalMeals += 1;
+                playSuccessSound();
+                triggerConfetti(id);
+                showToast(
+                    `${student.id}番さん ごちそうさま！`,
+                    `これで 合計 ${student.totalMeals}回目 の完食だよ！`,
+                    getMilestoneEmoji(student.totalMeals)
+                );
+            } else {
+                // Undo today's meal
+                student.eatenToday = false;
+                student.totalMeals = Math.max(0, student.totalMeals - 1);
+                playUndoSound();
+                showToast(
+                    `${student.id}番さんの記録をとりけしました`,
+                    `現在の合計は ${student.totalMeals}回 です`,
+                    '↩️'
+                );
+            }
+
+            saveState();
+            renderAll();
+        }
+
+        function getMilestoneEmoji(count) {
+            if (count >= 20) return '🏆';
+            if (count >= 10) return '👑';
+            if (count >= 5) return '🌟';
+            return '😋';
+        }
+
+        function triggerConfetti(studentId) {
+            const btn = document.getElementById(`student-btn-${studentId}`);
+            if (btn && typeof confetti === 'function') {
+                const rect = btn.getBoundingClientRect();
+                const x = (rect.left + rect.width / 2) / window.innerWidth;
+                const y = (rect.top + rect.height / 2) / window.innerHeight;
+                confetti({
+                    particleCount: 28,
+                    spread: 55,
+                    origin: { x, y },
+                    colors: ['#F59E0B', '#10B981', '#F97316', '#FACC15']
+                });
+            }
+        }
+
+        // --- Toast Notification ---
+        let toastTimeout = null;
+        function showToast(title, subtitle, emoji) {
+            const banner = document.getElementById('toast-banner');
+            document.getElementById('toast-title').textContent = title;
+            document.getElementById('toast-subtitle').textContent = subtitle;
+            document.getElementById('toast-emoji').textContent = emoji;
+
+            banner.classList.remove('opacity-0', 'translate-y-10');
+            banner.classList.add('opacity-100', 'translate-y-0');
+
+            if (toastTimeout) clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                banner.classList.remove('opacity-100', 'translate-y-0');
+                banner.classList.add('opacity-0', 'translate-y-10');
+            }, 2600);
+        }
+
+        // --- Rendering Functions ---
+        function renderAll() {
+            renderHeader();
+            renderStudentGrid();
+            renderRanking();
+        }
+
+        function renderHeader() {
+            const today = new Date();
+            const month = today.getMonth() + 1;
+            const date = today.getDate();
+            const days = ['日', '月', '火', '水', '木', '金', '土'];
+            const dayName = days[today.getDay()];
+
+            document.getElementById('current-date-display').textContent = 
+                `📅 ${month}月${date}日(${dayName})`;
+
+            const eatenCount = state.students.filter(s => s.eatenToday).length;
+            document.getElementById('today-count').textContent = eatenCount;
+            document.getElementById('total-students-display').textContent = state.studentCount;
+        }
+
+        function renderStudentGrid() {
+            const grid = document.getElementById('student-grid');
+            grid.innerHTML = '';
+
+            state.students.forEach(student => {
+                const btn = document.createElement('button');
+                btn.id = `student-btn-${student.id}`;
+                btn.onclick = () => toggleStudentMeal(student.id);
+                
+                const baseClasses = "relative rounded-2xl p-2.5 sm:p-3 flex flex-col items-center justify-center border-2 transition-all select-none cursor-pointer";
+                const stateClasses = student.eatenToday
+                    ? "btn-3d-done animate-pop"
+                    : "bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-950 btn-3d";
+
+                btn.className = `${baseClasses} ${stateClasses}`;
+
+                btn.innerHTML = `
+                    <div class="text-xs font-bold ${student.eatenToday ? 'text-emerald-100' : 'text-amber-600'}">
+                        ${student.eatenToday ? '完食！' : 'ばんごう'}
+                    </div>
+                    <div class="text-2xl sm:text-3xl font-black leading-none my-1">
+                        ${student.id}
+                    </div>
+                    <div class="text-xs font-bold px-2 py-0.5 rounded-full ${student.eatenToday ? 'bg-emerald-700/50 text-white' : 'bg-amber-200/80 text-amber-800'}">
+                        ${student.eatenToday ? '😋 ' : '🍚 '}${student.totalMeals}回
+                    </div>
+                `;
+                grid.appendChild(btn);
+            });
+        }
+
+        function renderRanking() {
+            // Calculate total meals across the entire class
+            const classTotal = state.students.reduce((sum, s) => sum + s.totalMeals, 0);
+            document.getElementById('class-total-meals').textContent = classTotal;
+
+            // Get unique meal counts sorted descending (1st highest, 2nd highest, 3rd highest)
+            const uniqueCounts = [...new Set(state.students.map(s => s.totalMeals))]
+                .sort((a, b) => b - a)
+                .slice(0, 3);
+
+            const listContainer = document.getElementById('ranking-list');
+            listContainer.innerHTML = '';
+
+            const rankStyles = [
+                {
+                    rank: '1位',
+                    emoji: '👑',
+                    bg: 'bg-gradient-to-r from-yellow-100 to-amber-100 border-yellow-400',
+                    badge: 'bg-yellow-500 text-white',
+                    text: 'text-amber-900'
+                },
+                {
+                    rank: '2位',
+                    emoji: '🥈',
+                    bg: 'bg-gradient-to-r from-slate-100 to-gray-100 border-slate-300',
+                    badge: 'bg-slate-500 text-white',
+                    text: 'text-slate-800'
+                },
+                {
+                    rank: '3位',
+                    emoji: '🥉',
+                    bg: 'bg-gradient-to-r from-orange-100 to-amber-50 border-orange-300',
+                    badge: 'bg-orange-500 text-white',
+                    text: 'text-orange-900'
+                }
+            ];
+
+            rankStyles.forEach((style, index) => {
+                const count = uniqueCounts[index];
+                const hasValue = count !== undefined;
+                const row = document.createElement('div');
+                row.className = `flex items-center justify-between px-5 py-4 rounded-2xl border-2 shadow-sm ${style.bg}`;
+
+                row.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <span class="text-3xl">${style.emoji}</span>
+                        <span class="font-black text-base sm:text-lg px-3 py-1 rounded-full shadow-xs ${style.badge}">
+                            ${style.rank}
+                        </span>
+                    </div>
+                    <div class="font-black text-2xl sm:text-3xl ${hasValue ? style.text : 'text-gray-400'}">
+                        ${hasValue ? count : '---'} <span class="text-sm sm:text-base font-bold">回</span>
+                    </div>
+                `;
+                listContainer.appendChild(row);
+            });
+        }
+
+        // --- Bulk Edit Past Records Functions ---
+        function openBulkEditModal() {
+            closeSettingsModal();
+            const list = document.getElementById('bulk-edit-list');
+            list.innerHTML = '';
+
+            state.students.forEach(student => {
+                const item = document.createElement('div');
+                item.className = 'flex items-center justify-between bg-sky-50/70 px-3 py-2 rounded-xl border border-sky-200';
+                item.innerHTML = `
+                    <label for="bulk-input-${student.id}" class="font-black text-sm text-sky-950">${student.id}番</label>
+                    <div class="flex items-center gap-1">
+                        <input type="number" id="bulk-input-${student.id}" min="0" max="999" value="${student.totalMeals}" 
+                            class="w-16 px-2 py-1 text-right font-black text-base text-sky-950 bg-white border-2 border-sky-300 rounded-lg focus:outline-none focus:border-sky-500">
+                        <span class="text-xs font-bold text-sky-700">回</span>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+
+            const modal = document.getElementById('bulk-edit-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeBulkEditModal() {
+            const modal = document.getElementById('bulk-edit-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function saveBulkEdit() {
+            state.students.forEach(student => {
+                const input = document.getElementById(`bulk-input-${student.id}`);
+                if (input) {
+                    let val = parseInt(input.value, 10);
+                    if (isNaN(val) || val < 0) val = 0;
+                    student.totalMeals = val;
+                }
+            });
+
+            closeBulkEditModal();
+            saveState();
+            renderAll();
+            showToast('これまでの記録をほぞんしました！', '入力した回数が反映されました', '📝');
+        }
+
+        // --- Day Progression & Settings ---
+        function startNextDay() {
+            openConfirmModal(
+                '🌅',
+                'つぎの日の給食にすすみますか？',
+                'これまでの「累計回数」と「ランキング」はそのまま残して、きょうのチェックだけをリセットします。',
+                () => {
+                    state.dayNumber += 1;
+                    state.students.forEach(s => s.eatenToday = false);
+                    saveState();
+                    renderAll();
+                    showToast('あたらしい日がスタート！', 'きょうもおいしく食べよう！', '🍱');
+                }
+            );
+        }
+
+        function openSettingsModal() {
+            document.getElementById('input-student-count').value = state.studentCount;
+            const modal = document.getElementById('settings-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeSettingsModal() {
+            const modal = document.getElementById('settings-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function updateStudentCount() {
+            const input = document.getElementById('input-student-count');
+            let val = parseInt(input.value, 10);
+            if (isNaN(val) || val < 1) val = 1;
+            if (val > 45) val = 45;
+            input.value = val;
+
+            state.studentCount = val;
+            initStudents(val);
+            saveState();
+            renderAll();
+            showToast('人数を変更しました', `クラスの人数を ${val}人 にしました`, '👥');
+        }
+
+        function toggleSound() {
+            state.soundEnabled = !state.soundEnabled;
+            updateSoundButtonUI();
+            if (state.soundEnabled) {
+                playSuccessSound();
+            }
+            saveState();
+        }
+
+        function updateSoundButtonUI() {
+            const btn = document.getElementById('sound-toggle-btn');
+            if (!btn) return;
+            if (state.soundEnabled) {
+                btn.textContent = 'ON 🔊';
+                btn.className = 'bg-emerald-500 text-white font-black px-4 py-2 rounded-xl text-sm shadow';
+            } else {
+                btn.textContent = 'OFF 🔇';
+                btn.className = 'bg-gray-400 text-white font-black px-4 py-2 rounded-xl text-sm shadow';
+            }
+        }
+
+        function loadDemoData() {
+            closeSettingsModal();
+            state.dayNumber = 12;
+            state.students.forEach(s => {
+                // Random meals between 2 and 11
+                s.totalMeals = Math.floor(Math.random() * 10) + 2;
+                s.eatenToday = Math.random() > 0.6;
+                if (s.eatenToday) s.totalMeals += 1;
+            });
+            saveState();
+            renderAll();
+            showToast('おためしデータを入れました', 'ランキングがどのように見えるか確認できます', '🎲');
+        }
+
+        function confirmResetAll() {
+            closeSettingsModal();
+            openConfirmModal(
+                '🗑️',
+                'すべての記録をリセットしますか？',
+                '全員の完食回数と日数がすべて「0」に戻ります。この操作は元に戻せません。',
+                () => {
+                    state.dayNumber = 1;
+                    state.students.forEach(s => {
+                        s.totalMeals = 0;
+                        s.eatenToday = false;
+                    });
+                    saveState();
+                    renderAll();
+                    showToast('リセット完了', '1日目から新しくスタートします！', '✨');
+                }
+            );
+        }
+
+        // --- Custom Confirmation Modal Logic ---
+        function openConfirmModal(icon, title, message, onConfirm) {
+            document.getElementById('confirm-icon').textContent = icon;
+            document.getElementById('confirm-title').textContent = title;
+            document.getElementById('confirm-message').textContent = message;
+            
+            const okBtn = document.getElementById('confirm-ok-btn');
+            okBtn.onclick = () => {
+                closeConfirmModal();
+                onConfirm();
+            };
+
+            const modal = document.getElementById('confirm-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeConfirmModal() {
+            const modal = document.getElementById('confirm-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        // --- Initialize App on Load ---
+        window.onload = function() {
+            const hasSavedData = loadState();
+            initStudents(state.studentCount);
+            updateSoundButtonUI();
+            renderAll();
+            if (hasSavedData) {
+                showToast('前回の記録を読み込みました', '前回の続きからスタートします', '💾');
+            }
+        };
+    </script>
+</body>
+</html>
